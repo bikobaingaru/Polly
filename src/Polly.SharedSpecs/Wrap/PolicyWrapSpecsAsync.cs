@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Polly.CircuitBreaker;
 using Polly.Retry;
@@ -9,9 +10,10 @@ using Xunit;
 
 namespace Polly.Specs.Wrap
 {
+    [Collection(Polly.Specs.Helpers.Constants.SystemClockDependentTestCollection)]
     public class PolicyWrapSpecsAsync
     {
-        #region Instance configuration syntax tests, non-generic policies
+        #region Instance configuration syntax tests, non-generic outer
 
         [Fact]
         public void Nongeneric_wraps_nongeneric_instance_syntax_wrapping_null_should_throw()
@@ -34,6 +36,34 @@ namespace Polly.Specs.Wrap
         }
 
         [Fact]
+        public void Nongeneric_wraps_nongeneric_using_instance_wrap_syntax_should_set_outer_inner()
+        {
+            Policy policyA = Policy.NoOpAsync();
+            Policy policyB = Policy.NoOpAsync();
+
+            PolicyWrap wrap = policyA.WrapAsync(policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
+        }
+
+        [Fact]
+        public void Nongeneric_wraps_generic_using_instance_wrap_syntax_should_set_outer_inner()
+        {
+            Policy policyA = Policy.NoOpAsync();
+            Policy<int> policyB = Policy.NoOpAsync<int>();
+
+            PolicyWrap<int> wrap = policyA.WrapAsync(policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
+        }
+
+        #endregion
+
+        #region   Instance configuration syntax tests, generic outer
+
+        [Fact]
         public void Generic_wraps_nongeneric_instance_syntax_wrapping_null_should_throw()
         {
             RetryPolicy<int> retry = Policy.HandleResult<int>(0).RetryAsync(1);
@@ -43,7 +73,6 @@ namespace Polly.Specs.Wrap
             config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("innerPolicy");
         }
 
-
         [Fact]
         public void Generic_wraps_generic_instance_syntax_wrapping_null_should_throw()
         {
@@ -52,6 +81,170 @@ namespace Polly.Specs.Wrap
             Action config = () => retry.WrapAsync((Policy<int>)null);
 
             config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("innerPolicy");
+        }
+
+        [Fact]
+        public void Generic_wraps_nongeneric_using_instance_wrap_syntax_should_set_outer_inner()
+        {
+            Policy<int> policyA = Policy.NoOpAsync<int>();
+            Policy policyB = Policy.NoOpAsync();
+
+            PolicyWrap<int> wrap = policyA.WrapAsync(policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
+        }
+
+        [Fact]
+        public void Generic_wraps_generic_using_instance_wrap_syntax_should_set_outer_inner()
+        {
+            Policy<int> policyA = Policy.NoOpAsync<int>();
+            Policy<int> policyB = Policy.NoOpAsync<int>();
+
+            PolicyWrap<int> wrap = policyA.WrapAsync(policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
+        }
+
+        #endregion
+
+        #region Interface extension configuration syntax tests, non-generic outer
+
+        [Fact]
+        public void Nongeneric_interface_wraps_nongeneric_instance_syntax_null_wrapping_should_throw()
+        {
+            IAsyncPolicy outerNull = null;
+            IAsyncPolicy retry = Policy.Handle<Exception>().RetryAsync(1);
+
+            Action config = () => outerNull.WrapAsync(retry);
+
+            config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("outerPolicy");
+        }
+
+        [Fact]
+        public void Nongeneric_interface_wraps_generic_instance_syntax_null_wrapping_should_throw()
+        {
+            IAsyncPolicy outerNull = null;
+            IAsyncPolicy<int> retry = Policy.HandleResult<int>(0).RetryAsync(1);
+
+            Action config = () => outerNull.WrapAsync<int>(retry);
+
+            config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("outerPolicy");
+        }
+
+        [Fact]
+        public void Nongeneric_interface_wraps_nongeneric_instance_syntax_wrapping_null_should_throw()
+        {
+            IAsyncPolicy retry = Policy.Handle<Exception>().RetryAsync(1);
+
+            Action config = () => retry.WrapAsync((Policy)null);
+
+            config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("innerPolicy");
+        }
+
+        [Fact]
+        public void Nongeneric_interface_wraps_generic_instance_syntax_wrapping_null_should_throw()
+        {
+            IAsyncPolicy retry = Policy.Handle<Exception>().RetryAsync(1);
+
+            Action config = () => retry.WrapAsync<int>((Policy<int>)null);
+
+            config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("innerPolicy");
+        }
+
+        [Fact]
+        public void Nongeneric_interface_wraps_nongeneric_using_instance_wrap_syntax_should_set_outer_inner()
+        {
+            IAsyncPolicy policyA = Policy.NoOpAsync();
+            IAsyncPolicy policyB = Policy.NoOpAsync();
+
+            IPolicyWrap wrap = policyA.WrapAsync(policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
+        }
+
+        [Fact]
+        public void Nongeneric_interface_wraps_generic_using_instance_wrap_syntax_should_set_outer_inner()
+        {
+            IAsyncPolicy policyA = Policy.NoOpAsync();
+            IAsyncPolicy<int> policyB = Policy.NoOpAsync<int>();
+
+            IPolicyWrap<int> wrap = policyA.WrapAsync(policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
+        }
+
+        #endregion
+
+        #region Interface extension configuration syntax tests, generic outer
+
+        [Fact]
+        public void Generic_interface_wraps_nongeneric_instance_syntax_null_wrapping_should_throw()
+        {
+            IAsyncPolicy<int> outerNull = null;
+            IAsyncPolicy retry = Policy.Handle<Exception>().RetryAsync(1);
+
+            Action config = () => outerNull.WrapAsync(retry);
+
+            config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("outerPolicy");
+        }
+
+        [Fact]
+        public void Generic_interface_wraps_generic_instance_syntax_null_wrapping_should_throw()
+        {
+            IAsyncPolicy<int> outerNull = null;
+            IAsyncPolicy<int> retry = Policy.HandleResult<int>(0).RetryAsync(1);
+
+            Action config = () => outerNull.WrapAsync<int>(retry);
+
+            config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("outerPolicy");
+        }
+
+        [Fact]
+        public void Generic_interface_wraps_nongeneric_instance_syntax_wrapping_null_should_throw()
+        {
+            IAsyncPolicy<int> retry = Policy.HandleResult<int>(0).RetryAsync(1);
+
+            Action config = () => retry.WrapAsync((Policy)null);
+
+            config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("innerPolicy");
+        }
+
+        [Fact]
+        public void Generic_interface_wraps_generic_instance_syntax_wrapping_null_should_throw()
+        {
+            IAsyncPolicy<int> retry = Policy.HandleResult<int>(0).RetryAsync(1);
+
+            Action config = () => retry.WrapAsync((Policy<int>)null);
+
+            config.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("innerPolicy");
+        }
+
+        [Fact]
+        public void Generic_interface_wraps_nongeneric_using_instance_wrap_syntax_should_set_outer_inner()
+        {
+            IAsyncPolicy<int> policyA = Policy.NoOpAsync<int>();
+            IAsyncPolicy policyB = Policy.NoOpAsync();
+
+            IPolicyWrap<int> wrap = policyA.WrapAsync(policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
+        }
+
+        [Fact]
+        public void Generic_interface_wraps_generic_using_instance_wrap_syntax_should_set_outer_inner()
+        {
+            IAsyncPolicy<int> policyA = Policy.NoOpAsync<int>();
+            IAsyncPolicy<int> policyB = Policy.NoOpAsync<int>();
+
+            IPolicyWrap<int> wrap = policyA.WrapAsync(policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
         }
 
         #endregion
@@ -97,6 +290,18 @@ namespace Polly.Specs.Wrap
             config.ShouldNotThrow();
         }
 
+        [Fact]
+        public void Wrapping_policies_using_static_wrap_syntax_should_set_outer_inner()
+        {
+            Policy policyA = Policy.NoOpAsync();
+            Policy policyB = Policy.NoOpAsync();
+
+            PolicyWrap wrap = Policy.WrapAsync(policyA, policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
+        }
+
         #endregion
 
         #region Static configuration syntax tests, strongly-typed policies
@@ -140,6 +345,18 @@ namespace Polly.Specs.Wrap
             config.ShouldNotThrow();
         }
 
+        [Fact]
+        public void Wrapping_policies_using_static_wrap_strongly_typed_syntax_should_set_outer_inner()
+        {
+            Policy<int> policyA = Policy.NoOpAsync<int>();
+            Policy<int> policyB = Policy.NoOpAsync<int>();
+
+            PolicyWrap<int> wrap = Policy.WrapAsync(policyA, policyB);
+
+            wrap.Outer.Should().BeSameAs(policyA);
+            wrap.Inner.Should().BeSameAs(policyB);
+        }
+
         #endregion
 
         #region Instance-configured: execution tests
@@ -167,7 +384,7 @@ namespace Polly.Specs.Wrap
         }
 
         [Fact]
-        public async void Wrapping_two_generic_policies_by_instance_syntax_and_executing_should_wrap_outer_then_inner_around_delegate()
+        public async Task Wrapping_two_generic_policies_by_instance_syntax_and_executing_should_wrap_outer_then_inner_around_delegate()
         {
             RetryPolicy<ResultPrimitive> retry = Policy.HandleResult(ResultPrimitive.Fault).RetryAsync(1); // Two tries in total: first try, plus one retry.
             CircuitBreakerPolicy<ResultPrimitive> breaker = Policy.HandleResult(ResultPrimitive.Fault).CircuitBreakerAsync(2, TimeSpan.MaxValue);
@@ -215,7 +432,7 @@ namespace Polly.Specs.Wrap
         }
 
         [Fact]
-        public async void Wrapping_two_generic_policies_by_static_syntax_and_executing_should_wrap_outer_then_inner_around_delegate()
+        public async Task Wrapping_two_generic_policies_by_static_syntax_and_executing_should_wrap_outer_then_inner_around_delegate()
         {
             RetryPolicy<ResultPrimitive> retry = Policy.HandleResult(ResultPrimitive.Fault).RetryAsync(1); // Two tries in total: first try, plus one retry.
             CircuitBreakerPolicy<ResultPrimitive> breaker = Policy.HandleResult(ResultPrimitive.Fault).CircuitBreakerAsync(2, TimeSpan.MaxValue);
@@ -241,7 +458,7 @@ namespace Polly.Specs.Wrap
         #region ExecuteAndCaptureAsyncSpecs
 
         [Fact]
-        public async void Outermost_policy_handling_exception_should_report_as_PolicyWrap_handled_exception()
+        public async Task Outermost_policy_handling_exception_should_report_as_PolicyWrap_handled_exception()
         {
             CircuitBreakerPolicy innerHandlingDBZE = Policy
                 .Handle<DivideByZeroException>()
@@ -254,13 +471,13 @@ namespace Polly.Specs.Wrap
             PolicyResult executeAndCaptureResultOnPolicyWrap =
                 await wrap.ExecuteAndCaptureAsync(() => { throw new ArgumentNullException(); });
 
-        executeAndCaptureResultOnPolicyWrap.Outcome.Should().Be(OutcomeType.Failure);
+            executeAndCaptureResultOnPolicyWrap.Outcome.Should().Be(OutcomeType.Failure);
             executeAndCaptureResultOnPolicyWrap.FinalException.Should().BeOfType<ArgumentNullException>();
             executeAndCaptureResultOnPolicyWrap.ExceptionType.Should().Be(ExceptionType.HandledByThisPolicy);
         }
 
         [Fact]
-        public async void Outermost_policy_not_handling_exception_even_if_inner_policies_do_should_report_as_unhandled_exception()
+        public async Task Outermost_policy_not_handling_exception_even_if_inner_policies_do_should_report_as_unhandled_exception()
         {
             CircuitBreakerPolicy innerHandlingDBZE = Policy
                 .Handle<DivideByZeroException>()
@@ -279,7 +496,7 @@ namespace Polly.Specs.Wrap
         }
 
         [Fact]
-        public async void Outermost_generic_policy_handling_exception_should_report_as_PolicyWrap_handled_exception()
+        public async Task Outermost_generic_policy_handling_exception_should_report_as_PolicyWrap_handled_exception()
         {
             CircuitBreakerPolicy<ResultPrimitive> innerHandlingDBZE = Policy<ResultPrimitive>
                 .Handle<DivideByZeroException>()
@@ -298,7 +515,7 @@ namespace Polly.Specs.Wrap
         }
 
         [Fact]
-        public async void Outermost_generic_policy_not_handling_exception_even_if_inner_policies_do_should_report_as_unhandled_exception()
+        public async Task Outermost_generic_policy_not_handling_exception_even_if_inner_policies_do_should_report_as_unhandled_exception()
         {
             CircuitBreakerPolicy<ResultPrimitive> innerHandlingDBZE = Policy<ResultPrimitive>
                 .Handle<DivideByZeroException>()
@@ -317,7 +534,7 @@ namespace Polly.Specs.Wrap
         }
 
         [Fact]
-        public async void Outermost_generic_policy_handling_result_should_report_as_PolicyWrap_handled_result()
+        public async Task Outermost_generic_policy_handling_result_should_report_as_PolicyWrap_handled_result()
         {
             CircuitBreakerPolicy<ResultPrimitive> innerHandlingFaultAgain = Policy
                 .HandleResult(ResultPrimitive.FaultAgain)
@@ -337,7 +554,7 @@ namespace Polly.Specs.Wrap
         }
 
         [Fact]
-        public async void Outermost_generic_policy_not_handling_result_even_if_inner_policies_do_should_not_report_as_handled()
+        public async Task Outermost_generic_policy_not_handling_result_even_if_inner_policies_do_should_not_report_as_handled()
         {
             CircuitBreakerPolicy<ResultPrimitive> innerHandlingFaultAgain = Policy
                 .HandleResult(ResultPrimitive.FaultAgain)

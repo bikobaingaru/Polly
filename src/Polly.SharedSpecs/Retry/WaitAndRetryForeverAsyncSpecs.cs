@@ -12,6 +12,7 @@ using Scenario = Polly.Specs.Helpers.PolicyExtensionsAsync.ExceptionAndOrCancell
 
 namespace Polly.Specs.Retry
 {
+    [Collection(Polly.Specs.Helpers.Constants.SystemClockDependentTestCollection)]
     public class WaitAndRetryForeverAsyncSpecs : IDisposable
     {
         public WaitAndRetryForeverAsyncSpecs()
@@ -199,7 +200,7 @@ namespace Polly.Specs.Retry
         }
 
         [Fact]
-        public void Should_call_onretry_on_each_retry_with_the_current_exception()
+        public async Task Should_call_onretry_on_each_retry_with_the_current_exception()
         {
             var expectedExceptions = new object[] { "Exception #1", "Exception #2", "Exception #3" };
             var retryExceptions = new List<Exception>();
@@ -209,7 +210,7 @@ namespace Polly.Specs.Retry
                 .Handle<DivideByZeroException>()
                 .WaitAndRetryForeverAsync(provider, (exception, _) => retryExceptions.Add(exception));
 
-            policy.RaiseExceptionAsync<DivideByZeroException>(3, (e, i) => e.HelpLink = "Exception #" + i);
+            await policy.RaiseExceptionAsync<DivideByZeroException>(3, (e, i) => e.HelpLink = "Exception #" + i);
 
             retryExceptions
                 .Select(x => x.HelpLink)
@@ -260,7 +261,7 @@ namespace Polly.Specs.Retry
         }
 
         [Fact]
-        public void Should_calculate_retry_timespans_from_current_retry_attempt_and_timespan_provider()
+        public async Task Should_calculate_retry_timespans_from_current_retry_attempt_and_timespan_provider()
         {
             var expectedRetryWaits = new[]
                 {
@@ -280,11 +281,47 @@ namespace Polly.Specs.Retry
                     (_, timeSpan) => actualRetryWaits.Add(timeSpan)
                 );
 
-            policy.RaiseExceptionAsync<DivideByZeroException>(5);
+            await policy.RaiseExceptionAsync<DivideByZeroException>(5);
 
             actualRetryWaits.Should()
                        .ContainInOrder(expectedRetryWaits);
         }
+
+        [Fact]
+        public async Task Should_be_able_to_calculate_retry_timespans_based_on_the_handled_fault()
+        {
+            Dictionary<Exception, TimeSpan> expectedRetryWaits = new Dictionary<Exception, TimeSpan>(){
+
+                {new DivideByZeroException(), 2.Seconds()},
+                {new ArgumentNullException(), 4.Seconds()},
+            };
+
+            var actualRetryWaits = new List<TimeSpan>();
+
+            var policy = Policy
+                .Handle<Exception>()
+                .WaitAndRetryForeverAsync(
+                    sleepDurationProvider: (retryAttempt, exc, ctx) =>
+                    {
+                        return expectedRetryWaits[exc];
+                    },
+                    onRetryAsync: (_, timeSpan, __) =>
+                    {
+                        actualRetryWaits.Add(timeSpan);
+                        return TaskHelper.EmptyTask;
+                    });
+
+            using (var enumerator = expectedRetryWaits.GetEnumerator())
+            {
+                await policy.ExecuteAsync(() => {
+                    if (enumerator.MoveNext()) throw enumerator.Current.Key;
+                    return TaskHelper.EmptyTask;
+                });
+            }
+
+            actualRetryWaits.Should().ContainInOrder(expectedRetryWaits.Values);
+        }
+
 
         [Fact]
         public async Task Should_be_able_to_pass_retry_duration_from_execution_to_sleepDurationProvider_via_context()

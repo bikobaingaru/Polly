@@ -90,7 +90,7 @@ namespace Polly.Specs.Fallback
         #region Policy operation tests
 
         [Fact]
-        public void Should_not_execute_fallback_when_execute_delegate_does_not_throw()
+        public async Task Should_not_execute_fallback_when_executed_delegate_does_not_throw()
         {
             bool fallbackActionExecuted = false;
             Func<CancellationToken, Task> fallbackActionAsync  = _ => { fallbackActionExecuted = true; return TaskHelper.EmptyTask; };
@@ -99,13 +99,13 @@ namespace Polly.Specs.Fallback
                                     .Handle<DivideByZeroException>()
                                     .FallbackAsync(fallbackActionAsync);
 
-            fallbackPolicy.ExecuteAsync(() => TaskHelper.EmptyTask);
+            await fallbackPolicy.ExecuteAsync(() => TaskHelper.EmptyTask);
 
             fallbackActionExecuted.Should().BeFalse();
         }
 
         [Fact]
-        public void Should_not_execute_fallback_when_execute_delegate_throws_exception_not_handled_by_policy()
+        public void Should_not_execute_fallback_when_executed_delegate_throws_exception_not_handled_by_policy()
         {
             bool fallbackActionExecuted = false;
             Func<CancellationToken, Task> fallbackActionAsync  = _ => { fallbackActionExecuted = true; return TaskHelper.EmptyTask; };
@@ -120,7 +120,7 @@ namespace Polly.Specs.Fallback
         }
 
         [Fact]
-        public void Should_execute_fallback_when_execute_delegate_throws_exception_handled_by_policy()
+        public void Should_execute_fallback_when_executed_delegate_throws_exception_handled_by_policy()
         {
             bool fallbackActionExecuted = false;
             Func<CancellationToken, Task> fallbackActionAsync  = _ => { fallbackActionExecuted = true; return TaskHelper.EmptyTask; };
@@ -136,7 +136,7 @@ namespace Polly.Specs.Fallback
 
 
         [Fact]
-        public void Should_execute_fallback_when_execute_delegate_throws_one_of_exceptions_handled_by_policy()
+        public void Should_execute_fallback_when_executed_delegate_throws_one_of_exceptions_handled_by_policy()
         {
             bool fallbackActionExecuted = false;
             Func<CancellationToken, Task> fallbackActionAsync  = _ => { fallbackActionExecuted = true; return TaskHelper.EmptyTask; };
@@ -153,7 +153,7 @@ namespace Polly.Specs.Fallback
 
 
         [Fact]
-        public void Should_not_execute_fallback_when_execute_delegate_throws_exception_not_one_of_exceptions_handled_by_policy()
+        public void Should_not_execute_fallback_when_executed_delegate_throws_exception_not_one_of_exceptions_handled_by_policy()
         {
             bool fallbackActionExecuted = false;
             Func<CancellationToken, Task> fallbackActionAsync  = _ => { fallbackActionExecuted = true; return TaskHelper.EmptyTask; };
@@ -251,12 +251,22 @@ namespace Polly.Specs.Fallback
             fallbackActionExecuted.Should().BeTrue();
         }
 
+        [Fact]
+        public void Should_throw_for_generic_method_execution_on_non_generic_policy()
+        {
+            FallbackPolicy fallbackPolicy = Policy
+                .Handle<DivideByZeroException>()
+                .FallbackAsync(_ => TaskHelper.EmptyTask);
+
+            fallbackPolicy.Awaiting(p => p.ExecuteAsync<int>(() => TaskHelper.FromResult(0))).ShouldThrow<InvalidOperationException>();
+        }
+
         #endregion
 
         #region onPolicyEvent delegate tests
 
         [Fact]
-        public void Should_call_onFallback_passing_exception_triggering_fallback()
+        public async Task Should_call_onFallback_passing_exception_triggering_fallback()
         {
             bool fallbackActionExecuted = false;
             Func<CancellationToken, Task> fallbackActionAsync = _ => { fallbackActionExecuted = true; return TaskHelper.EmptyTask; };
@@ -269,7 +279,7 @@ namespace Polly.Specs.Fallback
                 .FallbackAsync(fallbackActionAsync, onFallbackAsync);
 
             Exception instanceToThrow = new ArgumentNullException("myParam");
-            fallbackPolicy.ExecuteAsync(() => { throw instanceToThrow; });
+            await fallbackPolicy.RaiseExceptionAsync(instanceToThrow);
 
             fallbackActionExecuted.Should().BeTrue();
             exceptionPassedToOnFallback.Should().BeOfType<ArgumentNullException>();
@@ -277,7 +287,7 @@ namespace Polly.Specs.Fallback
         }
 
         [Fact]
-        public void Should_not_call_onFallback_when_execute_delegate_does_not_throw()
+        public async Task Should_not_call_onFallback_when_executed_delegate_does_not_throw()
         {
             Func<CancellationToken, Task> fallbackActionAsync = _ => TaskHelper.EmptyTask;
 
@@ -288,7 +298,7 @@ namespace Polly.Specs.Fallback
                 .Handle<DivideByZeroException>()
                 .FallbackAsync(fallbackActionAsync, onFallbackAsync);
 
-            fallbackPolicy.ExecuteAsync(() => TaskHelper.EmptyTask);
+            await fallbackPolicy.ExecuteAsync(() => TaskHelper.EmptyTask);
 
             onFallbackExecuted.Should().BeFalse();
         }
@@ -372,7 +382,7 @@ namespace Polly.Specs.Fallback
         }
 
         [Fact]
-        public void Context_should_be_empty_if_execute_not_called_with_any_context_data()
+        public async Task Context_should_be_empty_if_execute_not_called_with_any_context_data()
         {
             Context capturedContext = null;
             bool onFallbackExecuted = false;
@@ -385,7 +395,7 @@ namespace Polly.Specs.Fallback
                 .Or<DivideByZeroException>()
                 .FallbackAsync(fallbackActionAsync, onFallbackAsync);
 
-            fallbackPolicy.RaiseExceptionAsync<DivideByZeroException>();
+            await fallbackPolicy.RaiseExceptionAsync<DivideByZeroException>();
 
             onFallbackExecuted.Should().BeTrue();
             capturedContext.Should().BeEmpty();
@@ -436,7 +446,7 @@ namespace Polly.Specs.Fallback
         }
 
         [Fact]
-        public void Context_should_be_empty_at_fallbackAction_if_execute_not_called_with_any_context_data()
+        public async Task Context_should_be_empty_at_fallbackAction_if_execute_not_called_with_any_context_data()
         {
             Context capturedContext = null;
             bool fallbackExecuted = false;
@@ -450,10 +460,114 @@ namespace Polly.Specs.Fallback
                 .Or<DivideByZeroException>()
                 .FallbackAsync(fallbackActionAsync, onFallbackAsync);
 
-            fallbackPolicy.RaiseExceptionAsync<DivideByZeroException>();
+            await fallbackPolicy.RaiseExceptionAsync<DivideByZeroException>();
 
             fallbackExecuted.Should().BeTrue();
             capturedContext.Should().BeEmpty();
+        }
+
+        #endregion
+
+        #region Exception passing tests
+
+        [Fact]
+        public void Should_call_fallbackAction_with_the_exception()
+        {
+            Exception fallbackException = null;
+
+            Func<Exception, Context, CancellationToken, Task> fallbackFunc = (ex, ctx, ct) => { fallbackException = ex; return TaskHelper.EmptyTask; };
+
+            Func<Exception, Context, Task> onFallback = (ex, ctx) => { return TaskHelper.EmptyTask; };
+
+            FallbackPolicy fallbackPolicy = Policy
+                .Handle<ArgumentNullException>()
+                .FallbackAsync(fallbackFunc, onFallback);
+
+            Exception instanceToThrow = new ArgumentNullException("myParam");
+            fallbackPolicy.Awaiting(p => p.RaiseExceptionAsync(instanceToThrow))
+                .ShouldNotThrow();
+
+            fallbackException.Should().Be(instanceToThrow);
+        }
+
+        [Fact]
+        public void Should_call_fallbackAction_with_the_exception_when_execute_and_capture()
+        {
+            Exception fallbackException = null;
+
+            Func<Exception, Context, CancellationToken, Task> fallbackFunc = (ex, ctx, ct) => { fallbackException = ex; return TaskHelper.EmptyTask; };
+
+            Func<Exception, Context, Task> onFallback = (ex, ctx) => { return TaskHelper.EmptyTask; };
+
+            FallbackPolicy fallbackPolicy = Policy
+                .Handle<ArgumentNullException>()
+                .FallbackAsync(fallbackFunc, onFallback);
+
+            fallbackPolicy.Awaiting(async p => await p.ExecuteAndCaptureAsync(() => { throw new ArgumentNullException(); }))
+                .ShouldNotThrow();
+
+            fallbackException.Should().NotBeNull()
+                .And.BeOfType(typeof(ArgumentNullException));
+        }
+
+        public void Should_call_fallbackAction_with_the_matched_inner_exception_unwrapped()
+        {
+            Exception fallbackException = null;
+
+            Func<Exception, Context, CancellationToken, Task> fallbackFunc = (ex, ctx, ct) => { fallbackException = ex; return TaskHelper.EmptyTask; };
+
+            Func<Exception, Context, Task> onFallback = (ex, ctx) => { return TaskHelper.EmptyTask; };
+
+            FallbackPolicy fallbackPolicy = Policy
+                .HandleInner<ArgumentNullException>()
+                .FallbackAsync(fallbackFunc, onFallback);
+
+            Exception instanceToCapture = new ArgumentNullException("myParam");
+            Exception instanceToThrow = new Exception(String.Empty, instanceToCapture);
+            fallbackPolicy.Awaiting(p => p.RaiseExceptionAsync(instanceToThrow))
+                .ShouldNotThrow();
+
+            fallbackException.Should().Be(instanceToCapture);
+        }
+
+        [Fact]
+        public void Should_call_fallbackAction_with_the_matched_inner_of_aggregate_exception_unwrapped()
+        {
+            Exception fallbackException = null;
+
+            Func<Exception, Context, CancellationToken, Task> fallbackFunc = (ex, ctx, ct) => { fallbackException = ex; return TaskHelper.EmptyTask; };
+
+            Func<Exception, Context, Task> onFallback = (ex, ctx) => { return TaskHelper.EmptyTask; };
+
+            FallbackPolicy fallbackPolicy = Policy
+                .HandleInner<ArgumentNullException>()
+                .FallbackAsync(fallbackFunc, onFallback);
+
+            Exception instanceToCapture = new ArgumentNullException("myParam");
+            Exception instanceToThrow = new AggregateException(instanceToCapture);
+            fallbackPolicy.Awaiting(p => p.RaiseExceptionAsync(instanceToThrow))
+                .ShouldNotThrow();
+
+            fallbackException.Should().Be(instanceToCapture);
+        }
+
+        [Fact]
+        public void Should_not_call_fallbackAction_with_the_exception_if_exception_unhandled()
+        {
+            Exception fallbackException = null;
+
+            Func<Exception, Context, CancellationToken, Task> fallbackFunc = (ex, ctx, ct) => { fallbackException = ex; return TaskHelper.EmptyTask; };
+
+            Func<Exception, Context, Task> onFallback = (ex, ctx) => { return TaskHelper.EmptyTask; };
+
+            FallbackPolicy fallbackPolicy = Policy
+                .Handle<DivideByZeroException>()
+                .FallbackAsync(fallbackFunc, onFallback);
+
+            fallbackPolicy.Awaiting(async p => await p.ExecuteAsync(() => { throw new ArgumentNullException(); }))
+                .ShouldThrow<ArgumentNullException>();
+
+            fallbackException.Should().BeNull();
         }
 
         #endregion

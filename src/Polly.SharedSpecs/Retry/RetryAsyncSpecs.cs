@@ -166,7 +166,7 @@ namespace Polly.Specs.Retry
         }
 
         [Fact]
-        public void Should_call_onretry_on_each_retry_with_the_current_retry_count()
+        public async Task Should_call_onretry_on_each_retry_with_the_current_retry_count()
         {
             var expectedRetryCounts = new[] { 1, 2, 3 };
             var retryCounts = new List<int>();
@@ -175,14 +175,14 @@ namespace Polly.Specs.Retry
                 .Handle<DivideByZeroException>()
                 .RetryAsync(3, (_, retryCount) => retryCounts.Add(retryCount));
 
-            policy.RaiseExceptionAsync<DivideByZeroException>(3);
+            await policy.RaiseExceptionAsync<DivideByZeroException>(3);
 
             retryCounts.Should()
                        .ContainInOrder(expectedRetryCounts);
         }
 
         [Fact]
-        public void Should_call_onretry_on_each_retry_with_the_current_exception()
+        public async Task Should_call_onretry_on_each_retry_with_the_current_exception()
         {
             var expectedExceptions = new object[] { "Exception #1", "Exception #2", "Exception #3" };
             var retryExceptions = new List<Exception>();
@@ -191,12 +191,29 @@ namespace Polly.Specs.Retry
                 .Handle<DivideByZeroException>()
                 .RetryAsync(3, (exception, _) => retryExceptions.Add(exception));
 
-            policy.RaiseExceptionAsync<DivideByZeroException>(3, (e, i) => e.HelpLink = "Exception #" + i);
+            await policy.RaiseExceptionAsync<DivideByZeroException>(3, (e, i) => e.HelpLink = "Exception #" + i);
 
             retryExceptions
                 .Select(x => x.HelpLink)
                 .Should()
                 .ContainInOrder(expectedExceptions);
+        }
+
+        [Fact]
+        public async Task Should_call_onretry_with_a_handled_innerexception()
+        {
+            Exception passedToOnRetry = null;
+
+            var policy = Policy
+                .HandleInner<DivideByZeroException>()
+                .RetryAsync(3, (exception, _) => passedToOnRetry = exception);
+
+            Exception toRaiseAsInner = new DivideByZeroException();
+            Exception withInner = new AggregateException(toRaiseAsInner);
+
+            await policy.RaiseExceptionAsync(withInner);
+
+            passedToOnRetry.Should().BeSameAs(toRaiseAsInner);
         }
 
         [Fact]
@@ -274,7 +291,7 @@ namespace Polly.Specs.Retry
                 .Handle<DivideByZeroException>()
                 .RetryAsync((_, __, context) => capturedContext = context);
 
-            policy.RaiseExceptionAsync<DivideByZeroException>();
+            policy.Awaiting(async x => await x.RaiseExceptionAsync<DivideByZeroException>()).ShouldNotThrow();
 
             capturedContext.Should()
                            .BeEmpty();
